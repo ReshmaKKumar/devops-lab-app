@@ -1,30 +1,65 @@
 pipeline {
-    agent any
 
-    stages {
+  // WHERE to run — 'any' = any available agent/node
+  agent any
 
-        stage('Clone') {
-            steps {
-                echo 'Cloning Repository...'
-            }
-        }
+  // GLOBAL ENV VARIABLES — available in all stages
+  environment {
+    APP_NAME  = 'my-app'
+    VERSION   = '1.0.0'
+  }
 
-        stage('Build') {
-            steps {
-                sh 'bash build.sh'
-            }
-        }
+  // TOOLS — auto-provisioned by Global Tool Config
+  tools {
+    nodejs 'NodeJS-18'
+  }
 
-        stage('Test') {
-            steps {
-                echo 'Testing Application...'
-            }
-        }
+  // PIPELINE STAGES
+  stages {
 
-        stage('Deploy') {
-            steps {
-                echo 'Deploying Application...'
-            }
-        }
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/ReshmaKKumar/devops-lab-app.git'
+      }
     }
+
+    stage('Install') {
+      steps {
+        sh 'npm install'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        sh 'npm test'
+      }
+      // What to do if test stage fails
+      post {
+        failure { echo 'Tests failed! Fix before merging.' }
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh 'npm run build'
+      }
+    }
+
+    stage('Deploy') {
+      // Only deploy from 'main' branch
+      when { branch 'main' }
+      steps {
+        sh './scripts/deploy.sh'
+      }
+    }
+
+  }
+post {
+    always  { echo 'Pipeline finished.' }
+    success { echo '✅ Build passed!' }
+    failure { echo '❌ Build failed — check logs.' }
+    cleanup { cleanWs() }
+  }
+
 }
